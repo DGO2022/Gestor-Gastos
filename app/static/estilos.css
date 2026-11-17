@@ -7,7 +7,11 @@
   --tinta-2: #52514e;        /* texto secundario */
   --tinta-3: #898781;        /* texto de apoyo y bordes de campos */
   --borde: rgba(11, 11, 11, 0.1);
-  --rejilla: #e1e0d9;
+  --rejilla: #e1e0d9;        /* líneas finas: tablas y rejilla de los gráficos */
+  --eje: #c3c2b7;
+  --serie: #2a78d6;          /* barras de los gráficos */
+  --serie-activa: #1c5cab;   /* barra bajo el cursor */
+  --serie-tenue: #c3c2b7;    /* meses que no son el seleccionado */
   --accion: #1c5cab;         /* botón principal (texto blanco encima: 6.6:1) */
   --accion-fuerte: #184f95;
   --enlace: #1c5cab;
@@ -24,6 +28,10 @@
     --tinta-2: #c3c2b7;
     --borde: rgba(255, 255, 255, 0.1);
     --rejilla: #2c2c2a;
+    --eje: #383835;
+    --serie: #3987e5;
+    --serie-activa: #6da7ec;
+    --serie-tenue: #52514e;
     --enlace: #86b6ef;
     --error: #e66767;
     --exito: #0ca30c;
@@ -261,6 +269,67 @@ h3 {
 
 .detalle {
   color: var(--tinta-2);
+}
+
+/* --- Gráficos ------------------------------------------------------------ */
+
+.graficos {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 52rem) {
+  .graficos {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.graficos .tarjeta {
+  min-width: 0; /* deja que el gráfico encoja junto con la tarjeta */
+  margin-bottom: 0;
+}
+
+.graficos h3 {
+  margin-bottom: 0.125rem;
+}
+
+.subtitulo {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: var(--tinta-2);
+}
+
+/* Chart.js adapta el gráfico a esta caja; la altura incluye las etiquetas del eje. */
+.lienzo {
+  position: relative;
+  height: 15rem;
+}
+
+.datos {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.datos summary {
+  width: fit-content;
+  font-weight: 600;
+  color: var(--enlace);
+  cursor: pointer;
+}
+
+.datos table {
+  margin-top: 0.5rem;
+}
+
+.datos th,
+.datos td {
+  padding: 0.35rem 0.5rem;
+}
+
+.datos tbody th {
+  font-weight: 400;
 }
 
 /* --- Lista de gastos ----------------------------------------------------- */

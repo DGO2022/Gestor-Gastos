@@ -9,7 +9,9 @@ const estado = {
   mesMinimo: "2000-01",
   mes: mesDeHoy(), // mes que se muestra, "AAAA-MM"
   editando: null, // id del gasto que se está editando, o null
-  gastos: [],
+  gastos: [], // gastos del mes que se muestra
+  meses: [], // total de cada mes del año que se muestra
+  categorias: [], // total por categoría del mes que se muestra
 };
 
 // --- Fechas y formato ------------------------------------------------------
@@ -43,6 +45,14 @@ function nombreDeMes(mes) {
   return formatoMes.format(new Date(anio, numero - 1, 1));
 }
 
+const formatoMesCorto = new Intl.DateTimeFormat("es", { month: "short" });
+
+/** "2026-11" -> "nov". */
+function nombreCortoDeMes(mes) {
+  const [anio, numero] = mes.split("-").map(Number);
+  return formatoMesCorto.format(new Date(anio, numero - 1, 1)).replace(".", "");
+}
+
 function conMayuscula(texto) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
@@ -60,7 +70,15 @@ const formatoNumero = new Intl.NumberFormat(undefined, {
 
 /** 1234.5 -> "S/ 1,234.50" (los separadores siguen el idioma del navegador). */
 function dinero(monto) {
-  return `${estado.moneda} ${formatoNumero.format(monto)}`;
+  return `${estado.moneda}\u00a0${formatoNumero.format(monto)}`;
+}
+
+const formatoPorcentaje = new Intl.NumberFormat(undefined, { style: "percent" });
+
+/** Qué parte del total del mes es este monto: "28%". */
+function parteDelMes(monto) {
+  const total = estado.meses.find((resumen) => resumen.mes === estado.mes).total;
+  return formatoPorcentaje.format(total ? monto / total : 0);
 }
 
 function cuantosGastos(cantidad) {
@@ -173,6 +191,234 @@ function filaDeGasto(gasto) {
   );
 }
 
+// --- Gráficos --------------------------------------------------------------
+
+const graficos = {}; // gráficos de Chart.js ya creados, por nombre
+const ALTO_DE_FILA = 34; // píxeles que ocupa cada categoría
+let tema = {}; // colores vigentes
+
+/** Lee los colores de las variables CSS, que cambian solas entre el tema claro y el oscuro. */
+function leerTema() {
+  const estilos = getComputedStyle(document.documentElement);
+  const color = (variable) => estilos.getPropertyValue(variable).trim();
+  return {
+    serie: color("--serie"),
+    serieActiva: color("--serie-activa"),
+    serieTenue: color("--serie-tenue"),
+    tinta: color("--tinta"),
+    tinta2: color("--tinta-2"),
+    tinta3: color("--tinta-3"),
+    rejilla: color("--rejilla"),
+    eje: color("--eje"),
+    superficie: color("--superficie"),
+  };
+}
+
+/** Etiqueta emergente: arriba el valor, que es lo que se busca, y debajo a qué corresponde. */
+function emergente(valor, detalle) {
+  return {
+    displayColors: false, // hay una sola serie: sobra la muestra de color
+    backgroundColor: tema.tinta,
+    titleColor: tema.superficie,
+    bodyColor: tema.superficie,
+    titleFont: { size: 14, weight: 600 },
+    padding: 10,
+    cornerRadius: 8,
+    callbacks: {
+      title: (puntos) => valor(puntos[0].dataIndex),
+      label: (punto) => detalle(punto.dataIndex),
+    },
+  };
+}
+
+const formatoEje = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const formatoEjeCompacto = new Intl.NumberFormat(undefined, {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/** Marcas del eje: números completos hasta 10 000 y abreviados (10K, 20K...) desde ahí. */
+function marcaDelEje(valor) {
+  return (this.max < 10000 ? formatoEje : formatoEjeCompacto).format(valor);
+}
+
+/** Columnas con el total de cada mes del año. Hacer clic en un mes lo muestra. */
+function configDeMeses() {
+  const meses = estado.meses;
+  const esElMesVisto = (resumen) => resumen.mes === estado.mes;
+  return {
+    data: {
+      labels: meses.map((resumen) => nombreCortoDeMes(resumen.mes)),
+      datasets: [
+        {
+          data: meses.map((resumen) => resumen.total),
+          // Énfasis: el mes que se está viendo va en color y el resto en gris, como contexto.
+          backgroundColor: meses.map((r) => (esElMesVisto(r) ? tema.serie : tema.serieTenue)),
+          hoverBackgroundColor: meses.map((r) => (esElMesVisto(r) ? tema.serieActiva : tema.tinta3)),
+          borderRadius: 4, // punta redondeada; la base queda recta
+          maxBarThickness: 24,
+        },
+      ],
+    },
+    options: {
+      interaction: { mode: "index", intersect: false }, // responde toda la franja del mes
+      onClick: (_evento, barras) => {
+        if (barras.length) irAMes(meses[barras[0].index].mes);
+      },
+      onHover: (evento, barras) => {
+        evento.native.target.style.cursor = barras.length ? "pointer" : "default";
+      },
+      scales: {
+        x: { grid: { display: false }, border: { color: tema.eje }, ticks: { color: tema.tinta3 } },
+        y: {
+          beginAtZero: true,
+          suggestedMax: meses.some((resumen) => resumen.total > 0) ? undefined : 100,
+          border: { display: false },
+          grid: { color: tema.rejilla },
+          ticks: { color: tema.tinta3, maxTicksLimit: 5, callback: marcaDelEje },
+        },
+      },
+      plugins: {
+        tooltip: emergente(
+          (i) => dinero(meses[i].total),
+          (i) => `${nombreDeMes(meses[i].mes)} · ${cuantosGastos(meses[i].cantidad)}`,
+        ),
+      },
+    },
+  };
+}
+
+function fuenteDeMontos() {
+  return `600 12px ${Chart.defaults.font.family}`;
+}
+
+const medidor = document.createElement("canvas").getContext("2d");
+
+function anchoDelMasLargo(textos) {
+  medidor.font = fuenteDeMontos();
+  return Math.max(0, ...textos.map((texto) => medidor.measureText(texto).width));
+}
+
+/** Complemento de Chart.js: escribe el monto en la punta de cada barra horizontal. */
+const montoEnLaPunta = {
+  id: "montoEnLaPunta",
+  afterDatasetsDraw(grafico) {
+    const lapiz = grafico.ctx;
+    lapiz.save();
+    lapiz.font = fuenteDeMontos();
+    lapiz.fillStyle = tema.tinta; // el texto va en color de texto, no en el de la barra
+    lapiz.textBaseline = "middle";
+    grafico.getDatasetMeta(0).data.forEach((barra, i) => {
+      lapiz.fillText(dinero(grafico.data.datasets[0].data[i]), barra.x + 6, barra.y);
+    });
+    lapiz.restore();
+  },
+};
+
+/** Barras horizontales, de mayor a menor gasto, con el total de cada categoría del mes. */
+function configDeCategorias() {
+  const filas = estado.categorias;
+  const montos = filas.map((fila) => dinero(fila.total));
+  return {
+    data: {
+      labels: filas.map((fila) => fila.categoria),
+      datasets: [
+        {
+          data: filas.map((fila) => fila.total),
+          // Un solo color: la categoría la dice su nombre y el monto, el largo de la barra.
+          backgroundColor: tema.serie,
+          hoverBackgroundColor: tema.serieActiva,
+          borderRadius: 4,
+          barThickness: 14,
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      interaction: { mode: "index", axis: "y", intersect: false }, // responde toda la fila
+      layout: { padding: { right: anchoDelMasLargo(montos) + 14 } }, // sitio para el monto
+      scales: {
+        x: { display: false, beginAtZero: true }, // sin eje: cada barra lleva su monto escrito
+        y: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: tema.tinta2, font: { size: 13 } },
+        },
+      },
+      plugins: {
+        tooltip: emergente(
+          (i) => montos[i],
+          (i) =>
+            `${filas[i].categoria} · ${parteDelMes(filas[i].total)} del mes · ${cuantosGastos(filas[i].cantidad)}`,
+        ),
+      },
+    },
+  };
+}
+
+/** Crea el gráfico la primera vez; después lo actualiza en su sitio, sin parpadeos. */
+function pintarGrafico(nombre, config, complementos = []) {
+  const grafico = graficos[nombre];
+  if (grafico) {
+    Object.assign(grafico, config);
+    grafico.resize();
+    grafico.update();
+  } else {
+    const lienzo = $(`grafico-${nombre}`);
+    graficos[nombre] = new Chart(lienzo, { type: "bar", plugins: complementos, ...config });
+  }
+}
+
+/** Los mismos datos del gráfico en una tabla: se leen sin cursor y con lector de pantalla. */
+function pintarTabla(id, columnas, filas) {
+  const cabecera = columnas.map((texto, i) =>
+    el("th", { scope: "col", className: i ? "numero" : "", textContent: texto }),
+  );
+  const cuerpo = filas.map(([nombre, ...valores]) =>
+    el(
+      "tr",
+      {},
+      el("th", { scope: "row", textContent: nombre }),
+      ...valores.map((valor) => el("td", { className: "numero", textContent: valor })),
+    ),
+  );
+  $(id).replaceChildren(el("thead", {}, el("tr", {}, ...cabecera)), el("tbody", {}, ...cuerpo));
+}
+
+function pintarGraficos() {
+  tema = leerTema();
+  const hayGastos = estado.categorias.length > 0;
+
+  $("subtitulo-categorias").textContent = conMayuscula(nombreDeMes(estado.mes));
+  $("vacio-categorias").hidden = hayGastos;
+  $("datos-categorias").hidden = !hayGastos;
+  $("lienzo-categorias").hidden = !hayGastos;
+  $("lienzo-categorias").style.height = `${estado.categorias.length * ALTO_DE_FILA + 8}px`;
+  pintarGrafico("categorias", configDeCategorias(), [montoEnLaPunta]);
+  pintarTabla(
+    "tabla-categorias",
+    ["Categoría", "Total", "Parte del mes", "Gastos"],
+    estado.categorias.map((fila) => [
+      fila.categoria,
+      dinero(fila.total),
+      parteDelMes(fila.total),
+      fila.cantidad,
+    ]),
+  );
+
+  $("subtitulo-meses").textContent = `${estado.mes.slice(0, 4)} · haz clic en un mes para verlo`;
+  pintarGrafico("meses", configDeMeses());
+  pintarTabla(
+    "tabla-meses",
+    ["Mes", "Total", "Gastos"],
+    estado.meses.map((resumen) => [
+      conMayuscula(nombreDeMes(resumen.mes)),
+      dinero(resumen.total),
+      resumen.cantidad,
+    ]),
+  );
+}
+
 // --- Cargar datos ----------------------------------------------------------
 
 let ultimaCarga = 0;
@@ -181,14 +427,16 @@ let ultimaCarga = 0;
 async function cargar() {
   const carga = ++ultimaCarga;
   const mes = estado.mes;
-  const [gastos, meses] = await Promise.all([
+  const [gastos, meses, categorias] = await Promise.all([
     api("GET", `/api/gastos?mes=${mes}`),
     api("GET", `/api/resumen/mensual?anio=${mes.slice(0, 4)}`),
+    api("GET", `/api/resumen/categorias?mes=${mes}`),
   ]);
   if (carga !== ultimaCarga) return; // respuesta vieja: mientras tanto se pidió otro mes
-  estado.gastos = gastos;
+  Object.assign(estado, { gastos, meses, categorias });
   pintarMes(meses.find((resumen) => resumen.mes === mes));
   pintarGastos();
+  pintarGraficos();
 }
 
 function irAMes(mes) {
@@ -291,6 +539,12 @@ async function iniciar() {
   $("mes-anterior").addEventListener("click", () => irAMes(moverMes(estado.mes, -1)));
   $("mes-siguiente").addEventListener("click", () => irAMes(moverMes(estado.mes, 1)));
   $("mes-actual").addEventListener("click", () => irAMes(mesDeHoy()));
+
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.maintainAspectRatio = false; // el tamaño lo manda la caja .lienzo del CSS
+  Chart.defaults.plugins.legend.display = false; // una sola serie: el título ya dice qué se ve
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) Chart.defaults.animation = false;
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", pintarGraficos);
 
   await cargar();
 }
