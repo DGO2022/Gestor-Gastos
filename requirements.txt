@@ -1,0 +1,4 @@
+# Lo necesario para ejecutar la app (versiones probadas).
+fastapi==0.163.1
+uvicorn==0.54.0
+pydantic>=2.9,<3

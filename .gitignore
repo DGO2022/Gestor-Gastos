@@ -1,0 +1,17 @@
+# Entorno virtual y cachés de Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Datos locales: tus gastos nunca se suben al repo
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Editor y sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
