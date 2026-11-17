@@ -202,3 +202,114 @@ def test_listar_con_un_mes_mal_escrito_devuelve_422(cliente, mes):
     assert respuesta.json() == {
         "detail": [{"campo": "mes", "mensaje": "El mes debe tener el formato AAAA-MM"}]
     }
+
+
+# --- editar --------------------------------------------------------------
+
+NUEVOS_DATOS = {"monto": "99.90", "categoria": "Salud", "fecha": "2026-05-02", "nota": "Farmacia"}
+
+
+def test_editar_reemplaza_todos_los_datos(cliente, crear):
+    creado = crear()
+
+    respuesta = cliente.put(f"/api/gastos/{creado['id']}", json=NUEVOS_DATOS)
+
+    editado = {
+        "id": creado["id"],
+        "monto": 99.9,
+        "categoria": "Salud",
+        "fecha": "2026-05-02",
+        "nota": "Farmacia",
+    }
+    assert respuesta.status_code == 200
+    assert respuesta.json() == editado
+    assert cliente.get(f"/api/gastos/{creado['id']}").json() == editado
+
+
+def test_editar_sin_nota_la_vacia(cliente, crear):
+    creado = crear(nota="Se va a borrar")
+    sin_nota = {clave: valor for clave, valor in NUEVOS_DATOS.items() if clave != "nota"}
+
+    respuesta = cliente.put(f"/api/gastos/{creado['id']}", json=sin_nota)
+
+    assert respuesta.json()["nota"] == ""
+
+
+def test_editar_sin_cambiar_nada_tambien_funciona(cliente, crear):
+    creado = crear()
+    mismos_datos = {clave: valor for clave, valor in creado.items() if clave != "id"}
+
+    respuesta = cliente.put(f"/api/gastos/{creado['id']}", json=mismos_datos)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == creado
+
+
+def test_editar_no_toca_los_demas_gastos(cliente, crear):
+    otro = crear(nota="No me toques")
+    creado = crear()
+
+    cliente.put(f"/api/gastos/{creado['id']}", json=NUEVOS_DATOS)
+
+    assert cliente.get(f"/api/gastos/{otro['id']}").json() == otro
+
+
+def test_editar_con_datos_invalidos_devuelve_422_y_no_cambia_nada(cliente, crear):
+    creado = crear()
+
+    respuesta = cliente.put(f"/api/gastos/{creado['id']}", json=NUEVOS_DATOS | {"monto": "0"})
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {
+        "detail": [{"campo": "monto", "mensaje": "El monto debe ser mayor que 0"}]
+    }
+    assert cliente.get(f"/api/gastos/{creado['id']}").json() == creado
+
+
+def test_editar_un_gasto_que_no_existe_devuelve_404_y_no_lo_crea(cliente):
+    respuesta = cliente.put("/api/gastos/999", json=NUEVOS_DATOS)
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detail": "Gasto no encontrado"}
+    assert cliente.get("/api/gastos").json() == []
+
+
+# --- borrar --------------------------------------------------------------
+
+
+def test_borrar_devuelve_204_y_el_gasto_desaparece(cliente, crear):
+    creado = crear()
+
+    respuesta = cliente.delete(f"/api/gastos/{creado['id']}")
+
+    assert respuesta.status_code == 204
+    assert respuesta.content == b""
+    assert cliente.get(f"/api/gastos/{creado['id']}").status_code == 404
+    assert cliente.get("/api/gastos").json() == []
+
+
+def test_borrar_no_toca_los_demas_gastos(cliente, crear):
+    otro = crear(nota="Me quedo")
+    creado = crear()
+
+    cliente.delete(f"/api/gastos/{creado['id']}")
+
+    assert cliente.get("/api/gastos").json() == [otro]
+
+
+def test_borrar_dos_veces_devuelve_404_la_segunda(cliente, crear):
+    creado = crear()
+    cliente.delete(f"/api/gastos/{creado['id']}")
+
+    respuesta = cliente.delete(f"/api/gastos/{creado['id']}")
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detail": "Gasto no encontrado"}
+
+
+@pytest.mark.parametrize("metodo", ["put", "delete"])
+def test_editar_y_borrar_exigen_un_id_entero_positivo(cliente, metodo):
+    respuesta = cliente.request(metodo, "/api/gastos/abc", json=NUEVOS_DATOS)
+
+    assert respuesta.status_code == 422
+    assert respuesta.json()["detail"][0]["campo"] == "gasto_id"

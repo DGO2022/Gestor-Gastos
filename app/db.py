@@ -99,3 +99,22 @@ def crear_gasto(conexion: sqlite3.Connection, gasto: GastoEntrada) -> dict:
             _a_fila(gasto),
         )
     return obtener_gasto(conexion, cursor.lastrowid)
+
+
+def actualizar_gasto(
+    conexion: sqlite3.Connection, gasto_id: int, gasto: GastoEntrada
+) -> dict | None:
+    """Reemplaza los datos del gasto. Devuelve None si ese id no existe."""
+    with conexion:
+        cursor = conexion.execute(
+            "UPDATE gastos SET monto_centimos = ?, categoria = ?, fecha = ?, nota = ? WHERE id = ?",
+            (*_a_fila(gasto), gasto_id),
+        )
+    return obtener_gasto(conexion, gasto_id) if cursor.rowcount else None
+
+
+def borrar_gasto(conexion: sqlite3.Connection, gasto_id: int) -> bool:
+    """Borra el gasto. Devuelve False si ese id no existe."""
+    with conexion:
+        cursor = conexion.execute("DELETE FROM gastos WHERE id = ?", (gasto_id,))
+    return cursor.rowcount > 0

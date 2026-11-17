@@ -91,3 +91,15 @@ def crear_gasto(gasto: GastoEntrada, conexion: Conexion):
 @app.get("/api/gastos/{gasto_id}", response_model=Gasto)
 def obtener_gasto(gasto_id: IdGasto, conexion: Conexion):
     return _o_404(db.obtener_gasto(conexion, gasto_id))
+
+
+@app.put("/api/gastos/{gasto_id}", response_model=Gasto)
+def actualizar_gasto(gasto_id: IdGasto, gasto: GastoEntrada, conexion: Conexion):
+    """Reemplaza el gasto completo: se envían los mismos datos que al crearlo."""
+    return _o_404(db.actualizar_gasto(conexion, gasto_id, gasto))
+
+
+@app.delete("/api/gastos/{gasto_id}", status_code=204)
+def borrar_gasto(gasto_id: IdGasto, conexion: Conexion) -> None:
+    if not db.borrar_gasto(conexion, gasto_id):
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
