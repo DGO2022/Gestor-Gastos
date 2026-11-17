@@ -8,8 +8,9 @@ from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app import db
-from app.esquemas import DatosInvalidos, Gasto, GastoEntrada
+from app import db, esquemas
+from app.config import ANIO_MINIMO
+from app.esquemas import DatosInvalidos, Gasto, GastoEntrada, TotalCategoria, TotalMes
 
 
 @asynccontextmanager
@@ -33,6 +34,7 @@ Mes = Annotated[
     str | None,
     Query(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$", description="Mes en formato AAAA-MM"),
 ]
+Anio = Annotated[int | None, Query(ge=ANIO_MINIMO, le=9999, description="Año; si falta, el actual")]
 
 
 # --- Errores -------------------------------------------------------------
@@ -42,6 +44,7 @@ MENSAJES = {
     CUERPO: "Se esperaba un objeto JSON con monto, categoria, fecha y nota",
     "gasto_id": "El id del gasto debe ser un número entero positivo",
     "mes": "El mes debe tener el formato AAAA-MM",
+    "anio": f"El año debe ser un número entre {ANIO_MINIMO} y 9999",
 }
 
 
@@ -103,3 +106,15 @@ def actualizar_gasto(gasto_id: IdGasto, gasto: GastoEntrada, conexion: Conexion)
 def borrar_gasto(gasto_id: IdGasto, conexion: Conexion) -> None:
     if not db.borrar_gasto(conexion, gasto_id):
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+
+@app.get("/api/resumen/mensual", response_model=list[TotalMes])
+def resumen_mensual(conexion: Conexion, anio: Anio = None):
+    """Total gastado en cada uno de los 12 meses del año (el actual si no se indica)."""
+    return db.resumen_mensual(conexion, anio or esquemas.hoy().year)
+
+
+@app.get("/api/resumen/categorias", response_model=list[TotalCategoria])
+def resumen_por_categoria(conexion: Conexion, mes: Mes = None):
+    """Total gastado por categoría, de mayor a menor. Con `mes`, solo el de ese mes."""
+    return db.resumen_por_categoria(conexion, mes)

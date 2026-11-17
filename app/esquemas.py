@@ -106,6 +106,22 @@ class Gasto(BaseModel):
     nota: str
 
 
+class TotalMes(BaseModel):
+    """Lo gastado en un mes ("AAAA-MM")."""
+
+    mes: str
+    total: float
+    cantidad: int
+
+
+class TotalCategoria(BaseModel):
+    """Lo gastado en una categoría."""
+
+    categoria: str
+    total: float
+    cantidad: int
+
+
 class ErrorDeCampo(BaseModel):
     campo: str
     mensaje: str

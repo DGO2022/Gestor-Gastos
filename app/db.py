@@ -118,3 +118,38 @@ def borrar_gasto(conexion: sqlite3.Connection, gasto_id: int) -> bool:
     with conexion:
         cursor = conexion.execute("DELETE FROM gastos WHERE id = ?", (gasto_id,))
     return cursor.rowcount > 0
+
+
+def resumen_mensual(conexion: sqlite3.Connection, anio: int) -> list[dict]:
+    """Total y número de gastos de cada mes del año: siempre 12 meses, con ceros si no hubo."""
+    resumen = {f"{anio:04d}-{mes:02d}": {"total": 0.0, "cantidad": 0} for mes in range(1, 13)}
+    filas = conexion.execute(
+        """
+        SELECT substr(fecha, 1, 7) AS mes, SUM(monto_centimos) AS centimos, COUNT(*) AS cantidad
+        FROM gastos
+        WHERE fecha BETWEEN ? AND ?
+        GROUP BY mes
+        """,
+        (f"{anio:04d}-01-01", f"{anio:04d}-12-31"),
+    )
+    for fila in filas:
+        resumen[fila["mes"]] = {"total": fila["centimos"] / 100, "cantidad": fila["cantidad"]}
+    return [{"mes": mes, **datos} for mes, datos in resumen.items()]
+
+
+def resumen_por_categoria(conexion: sqlite3.Connection, mes: str | None = None) -> list[dict]:
+    """Total y número de gastos por categoría, de mayor a menor gasto."""
+    donde, parametros = _filtro_mes(mes)
+    filas = conexion.execute(
+        "SELECT categoria, SUM(monto_centimos) AS centimos, COUNT(*) AS cantidad"
+        f" FROM gastos{donde} GROUP BY categoria ORDER BY centimos DESC, categoria",
+        parametros,
+    )
+    return [
+        {
+            "categoria": fila["categoria"],
+            "total": fila["centimos"] / 100,
+            "cantidad": fila["cantidad"],
+        }
+        for fila in filas
+    ]
