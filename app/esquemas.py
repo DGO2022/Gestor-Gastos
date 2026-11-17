@@ -5,7 +5,7 @@ import re
 from datetime import date
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_core import PydanticCustomError
 
 from app.config import ANIO_MINIMO, CATEGORIAS, MONTO_MAXIMO, NOTA_MAX_CARACTERES
@@ -43,7 +43,7 @@ class GastoEntrada(BaseModel):
     """Datos para crear o editar un gasto."""
 
     monto: Decimal
-    categoria: str
+    categoria: str = Field(json_schema_extra={"enum": list(CATEGORIAS)})
     fecha: date
     nota: str = ""
 
@@ -65,7 +65,7 @@ class GastoEntrada(BaseModel):
     @classmethod
     def _validar_categoria(cls, valor: object) -> str:
         if valor not in CATEGORIAS:
-            raise _invalido("Categoría no válida. Opciones: " + ", ".join(CATEGORIAS))
+            raise _invalido("Elige una categoría de la lista")
         return valor
 
     @field_validator("fecha", mode="before")

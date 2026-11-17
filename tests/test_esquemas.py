@@ -119,10 +119,7 @@ def test_categoria_acepta_las_de_la_lista(categoria):
 
 @pytest.mark.parametrize("entrada", ["Comida", "alimentación", " Salud ", "", None, 5, ["Salud"]])
 def test_categoria_fuera_de_la_lista_se_rechaza(entrada):
-    mensaje = mensaje_de_error(categoria=entrada)
-
-    assert mensaje.startswith("Categoría no válida. Opciones: Alimentación, Transporte")
-    assert mensaje.endswith("Otros")
+    assert mensaje_de_error(categoria=entrada) == "Elige una categoría de la lista"
 
 
 # --- fecha ---------------------------------------------------------------
