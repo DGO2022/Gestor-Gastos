@@ -94,3 +94,24 @@ class GastoEntrada(BaseModel):
         if len(nota) > NOTA_MAX_CARACTERES:
             raise _invalido(f"La nota no puede superar los {NOTA_MAX_CARACTERES} caracteres")
         return nota
+
+
+class Gasto(BaseModel):
+    """Un gasto guardado, tal como lo devuelve la API."""
+
+    id: int
+    monto: float
+    categoria: str
+    fecha: date
+    nota: str
+
+
+class ErrorDeCampo(BaseModel):
+    campo: str
+    mensaje: str
+
+
+class DatosInvalidos(BaseModel):
+    """Cuerpo de las respuestas 422: un error por cada dato que no cumple las reglas."""
+
+    detail: list[ErrorDeCampo]

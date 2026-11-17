@@ -1,4 +1,7 @@
-"""Reglas de validación de un gasto, probadas sin pasar por HTTP."""
+"""Reglas de validación de un gasto, probadas sin pasar por HTTP.
+
+En los tests "hoy" siempre es 2026-06-15 (lo fija conftest.py).
+"""
 
 from datetime import date
 from decimal import Decimal
@@ -6,18 +9,10 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app import esquemas
 from app.config import CATEGORIAS
 from app.esquemas import GastoEntrada
 
-HOY = date(2026, 6, 15)
 VALIDO = {"monto": "25.50", "categoria": "Alimentación", "fecha": "2026-06-10", "nota": "Almuerzo"}
-
-
-@pytest.fixture(autouse=True)
-def hoy_fijo(monkeypatch):
-    """Congela "hoy" para que los tests de fechas no dependan del día en que se ejecutan."""
-    monkeypatch.setattr(esquemas, "hoy", lambda: HOY)
 
 
 def validar(**cambios) -> GastoEntrada:
