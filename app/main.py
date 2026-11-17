@@ -8,9 +8,16 @@ from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app import db, esquemas
+from app import config, db, esquemas
 from app.config import ANIO_MINIMO
-from app.esquemas import DatosInvalidos, Gasto, GastoEntrada, TotalCategoria, TotalMes
+from app.esquemas import (
+    Configuracion,
+    DatosInvalidos,
+    Gasto,
+    GastoEntrada,
+    TotalCategoria,
+    TotalMes,
+)
 
 
 @asynccontextmanager
@@ -78,6 +85,17 @@ def _o_404(gasto: dict | None) -> dict:
 def salud() -> dict[str, str]:
     """Comprobación rápida de que el servidor responde."""
     return {"estado": "ok"}
+
+
+@app.get("/api/config", response_model=Configuracion)
+def configuracion():
+    """Reglas y ajustes que la web lee al cargar, para no repetirlos en el navegador."""
+    return {
+        "moneda": config.moneda(),
+        "categorias": config.CATEGORIAS,
+        "nota_max_caracteres": config.NOTA_MAX_CARACTERES,
+        "anio_minimo": config.ANIO_MINIMO,
+    }
 
 
 @app.get("/api/gastos", response_model=list[Gasto])

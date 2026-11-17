@@ -17,6 +17,12 @@ def hoy_fijo(monkeypatch):
     monkeypatch.setattr(esquemas, "hoy", lambda: HOY)
 
 
+@pytest.fixture(autouse=True)
+def sin_ajustes_del_equipo(monkeypatch):
+    """Los tests no deben depender de las variables de entorno de quien los ejecuta."""
+    monkeypatch.delenv("GASTOS_MONEDA", raising=False)
+
+
 @pytest.fixture
 def ruta_db(tmp_path, monkeypatch):
     """Cada test usa su propio archivo SQLite, vacío y temporal."""

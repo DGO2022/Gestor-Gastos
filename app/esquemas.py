@@ -122,6 +122,15 @@ class TotalCategoria(BaseModel):
     cantidad: int
 
 
+class Configuracion(BaseModel):
+    """Lo que la web necesita saber para pintar el formulario y los montos."""
+
+    moneda: str
+    categorias: list[str]
+    nota_max_caracteres: int
+    anio_minimo: int
+
+
 class ErrorDeCampo(BaseModel):
     campo: str
     mensaje: str
