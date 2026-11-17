@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+CARPETA_WEB = Path(__file__).resolve().parent / "static"
 
 # Lista cerrada: así los gráficos no se fragmentan por erratas
 # ("comida", "Comida", "comidas"...). Para añadir una categoría, edita esta lista.

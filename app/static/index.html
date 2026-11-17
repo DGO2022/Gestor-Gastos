@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Solo se cargan archivos de este mismo servidor: nada de scripts externos ni en línea. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+  <meta name="color-scheme" content="light dark">
+  <title>Gestor de gastos</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/estilos.css">
+</head>
+<body>
+  <header class="cabecera">
+    <h1>Gestor de gastos</h1>
+  </header>
+
+  <main>
+    <section class="tarjeta" aria-labelledby="titulo-formulario">
+      <h2 id="titulo-formulario">Nuevo gasto</h2>
+      <!-- novalidate: las reglas viven en el backend, que responde con el mensaje de cada campo. -->
+      <form id="formulario" novalidate>
+        <div class="campo">
+          <label for="monto" id="etiqueta-monto">Monto</label>
+          <input id="monto" type="number" inputmode="decimal" step="0.01" min="0.01"
+                 placeholder="0.00" autocomplete="off" aria-describedby="error-monto">
+          <p class="error" id="error-monto"></p>
+        </div>
+        <div class="campo">
+          <label for="categoria">Categoría</label>
+          <select id="categoria" aria-describedby="error-categoria"></select>
+          <p class="error" id="error-categoria"></p>
+        </div>
+        <div class="campo">
+          <label for="fecha">Fecha</label>
+          <input id="fecha" type="date" aria-describedby="error-fecha">
+          <p class="error" id="error-fecha"></p>
+        </div>
+        <div class="campo">
+          <label for="nota">Nota <span class="opcional">(opcional)</span></label>
+          <input id="nota" type="text" autocomplete="off" aria-describedby="error-nota">
+          <p class="error" id="error-nota"></p>
+        </div>
+        <div class="acciones">
+          <button type="submit" id="guardar" class="boton primario">Agregar gasto</button>
+          <button type="button" id="cancelar" class="boton" hidden>Cancelar</button>
+          <p id="aviso" class="aviso" role="status"></p>
+        </div>
+      </form>
+    </section>
+
+    <section class="mes" aria-label="Mes que se muestra">
+      <div class="navegacion">
+        <button type="button" id="mes-anterior" class="boton flecha" aria-label="Mes anterior">‹</button>
+        <h2 id="mes-titulo" aria-live="polite">&nbsp;</h2>
+        <button type="button" id="mes-siguiente" class="boton flecha" aria-label="Mes siguiente">›</button>
+        <button type="button" id="mes-actual" class="boton" hidden>Mes actual</button>
+      </div>
+      <p class="total">
+        <span id="total-mes" class="cifra">&nbsp;</span>
+        <span id="total-detalle" class="detalle"></span>
+      </p>
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-lista">
+      <h3 id="titulo-lista">Gastos del mes</h3>
+      <div class="tabla-contenedor">
+        <table id="tabla-gastos" hidden>
+          <thead>
+            <tr>
+              <th scope="col">Fecha</th>
+              <th scope="col">Categoría</th>
+              <th scope="col">Nota</th>
+              <th scope="col" class="numero">Monto</th>
+              <th scope="col" aria-label="Acciones"></th>
+            </tr>
+          </thead>
+          <tbody id="lista-gastos"></tbody>
+        </table>
+      </div>
+      <p class="vacio" id="vacio-gastos" hidden>Aún no hay gastos en este mes.</p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p>Tus gastos se guardan solo en este equipo, en el archivo <code>gastos.db</code>.</p>
+  </footer>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

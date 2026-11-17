@@ -1,4 +1,4 @@
-"""Punto de entrada de la API."""
+"""Punto de entrada: la API bajo /api y la página web en /."""
 
 import sqlite3
 from contextlib import asynccontextmanager
@@ -6,7 +6,8 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import config, db, esquemas
 from app.config import ANIO_MINIMO
@@ -42,6 +43,17 @@ Mes = Annotated[
     Query(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$", description="Mes en formato AAAA-MM"),
 ]
 Anio = Annotated[int | None, Query(ge=ANIO_MINIMO, le=9999, description="Año; si falta, el actual")]
+
+
+@app.middleware("http")
+async def sin_cache(peticion: Request, siguiente):
+    """Hace que el navegador pregunte siempre si hay una versión nueva antes de usar su copia.
+
+    Sin esto, tras actualizar la app el navegador puede seguir usando el JavaScript antiguo.
+    """
+    respuesta = await siguiente(peticion)
+    respuesta.headers.setdefault("Cache-Control", "no-cache")
+    return respuesta
 
 
 # --- Errores -------------------------------------------------------------
@@ -136,3 +148,14 @@ def resumen_mensual(conexion: Conexion, anio: Anio = None):
 def resumen_por_categoria(conexion: Conexion, mes: Mes = None):
     """Total gastado por categoría, de mayor a menor. Con `mes`, solo el de ese mes."""
     return db.resumen_por_categoria(conexion, mes)
+
+
+# --- Página web ----------------------------------------------------------
+
+
+@app.get("/", include_in_schema=False)
+def pagina():
+    return FileResponse(config.CARPETA_WEB / "index.html")
+
+
+app.mount("/static", StaticFiles(directory=config.CARPETA_WEB), name="static")
